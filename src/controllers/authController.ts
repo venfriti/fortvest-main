@@ -2,7 +2,9 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
+import pool from '../config/database';
 import { CreateUserDTO } from '../interfaces/User';
+import jwt from 'jsonwebtoken';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { full_name, email, password, phone_number }: CreateUserDTO = req.body;
@@ -13,12 +15,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const client = await query('BEGIN'); // Start Transaction (if using a pool client, strictly we'd checkout a client, but for now we use query directly. See note below*)
+  const client = await pool.connect(); 
 
   try {
+    // Start the transaction on THIS specific client
+    await client.query('BEGIN');
+
     // 2. Check if user already exists
-    const userCheck = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) {
+      await client.query('ROLLBACK'); // Cancel transaction
+      client.release(); // Free the transaction
       res.status(409).json({ error: 'User already exists' });
       return;
     }
@@ -44,12 +51,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       [newUser.id]
     );
 
-    // 6. Commit Transaction (Save everything)
-    // In a real pool scenario, you'd send 'COMMIT' via the same client. 
-    // Since our simple 'query' helper uses the pool directly, we rely on atomic commands.
-    // *Correction for Simplicity:* For this specific solo-dev setup, we will just execute them sequentially. 
-    // If wallet creation fails, you would manually delete the user in a sophisticated app, 
-    // but this is sufficient for Phase 2 MVP.
+    await client.query('COMMIT');
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -61,7 +63,63 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     });
 
   } catch (error) {
-    console.error('Registration Error:', error);
+      await client.query('ROLLBACK');
+      console.error('Registration Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    //release the client back to the pool
+    client.release();
+  }
+};
+
+export const login = async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    res.status(400).json({ error: 'Email and password are required' });
+    return;
+  }
+
+  try {
+    // 1. Find User
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (result.rows.length === 0) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    const user = result.rows[0];
+
+    // 2. Check Password
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isMatch) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    // 3. Generate JWT Token
+    // We use a secret key from .env (we need to add this to .env next!)
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET || 'fallback_secret_dont_use_in_production',
+      { expiresIn: '1d' }
+    );
+
+    // 4. Send Success Response
+    res.json({
+      message: 'Login successful',
+      token, // The frontend will save this token
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('Login Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
