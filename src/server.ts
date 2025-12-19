@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors'; 
 import helmet from 'helmet'; 
 import authRoutes from './routes/authRoutes'; 
+import walletRoutes from './routes/walletRoutes';
 import { query } from './config/database';
 
 const app = express();
@@ -11,12 +12,13 @@ const PORT = process.env.PORT || 3000;
 // Routes
 app.use(express.json());
 
-app.use('/api/auth', authRoutes); 
-
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Allow frontend to connect
 app.use(express.json()); // Parse JSON bodies
+
+app.use('/api/auth', authRoutes); 
+app.use('/api/wallet', walletRoutes);
 
 // Simple route to test DB connection
 app.get('/test-db', async (req, res) => {

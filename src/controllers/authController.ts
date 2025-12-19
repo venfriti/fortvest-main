@@ -5,6 +5,7 @@ import { query } from '../config/database';
 import pool from '../config/database';
 import { CreateUserDTO } from '../interfaces/User';
 import jwt from 'jsonwebtoken';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { full_name, email, password, phone_number }: CreateUserDTO = req.body;
@@ -120,6 +121,44 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   } catch (error) {
     console.error('Login Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const getProfile = async (req: Request, res: Response): Promise<void> => {
+  // Cast req to AuthRequest so TypeScript knows 'user' exists
+  const authReq = req as AuthRequest; 
+
+  try {
+    // We already know who the user is because the middleware told us!
+    const userId = authReq.user?.id;
+
+    if (!userId) {
+       res.status(400).json({ error: 'User ID missing' });
+       return;
+    }
+
+    // Fetch user details AND their wallet balance
+    const result = await pool.query( // Ensure you import 'pool'
+      `SELECT u.id, u.full_name, u.email, u.phone_number, w.balance, w.currency 
+       FROM users u
+       LEFT JOIN wallets w ON u.id = w.user_id
+       WHERE u.id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({
+      message: 'Profile retrieved successfully',
+      profile: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Profile Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
