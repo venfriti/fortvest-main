@@ -1,9 +1,9 @@
-// src/server.ts
 import express from 'express';
 import cors from 'cors'; 
 import helmet from 'helmet'; 
 import authRoutes from './routes/authRoutes'; 
 import walletRoutes from './routes/walletRoutes';
+import loanRoutes from './routes/loanRoutes';
 import { query } from './config/database';
 
 const app = express();
@@ -19,6 +19,8 @@ app.use(express.json()); // Parse JSON bodies
 
 app.use('/api/auth', authRoutes); 
 app.use('/api/wallet', walletRoutes);
+app.use('/api/loans', loanRoutes);
+
 
 // Simple route to test DB connection
 app.get('/test-db', async (req, res) => {

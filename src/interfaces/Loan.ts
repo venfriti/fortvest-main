@@ -1,5 +1,3 @@
-// src/interfaces/Loan.ts
-
 // 1. Define allowed statuses strictly. 
 // This prevents bugs where you might type 'pending' (lowercase) vs 'PENDING' (uppercase).
 export type LoanStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'PAID' | 'OVERDUE' | 'REJECTED';

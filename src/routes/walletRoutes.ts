@@ -1,4 +1,3 @@
-// src/routes/walletRoutes.ts
 import { Router } from 'express';
 import { fundWallet, getBalance } from '../controllers/walletController';
 import { authenticateToken } from '../middlewares/authMiddleware';

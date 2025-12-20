@@ -1,4 +1,3 @@
-// src/controllers/authController.ts
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database';

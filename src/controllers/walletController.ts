@@ -1,4 +1,3 @@
-// src/controllers/walletController.ts
 import { Response } from 'express';
 import pool from '../config/database';
 import { AuthRequest } from '../middlewares/authMiddleware';
