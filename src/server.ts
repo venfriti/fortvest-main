@@ -6,6 +6,7 @@ import walletRoutes from './routes/walletRoutes';
 import loanRoutes from './routes/loanRoutes';
 import adminRoutes from './routes/adminRoutes';
 import savingsRoutes from './routes/savingsRoutes';
+import investmentRoutes from './routes/investmentRoutes';
 import { query } from './config/database';
 
 const app = express();
@@ -24,7 +25,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/savings', savingsRoutes);
-
+app.use('/api/investments', investmentRoutes);
 
 // Simple route to test DB connection
 app.get('/test-db', async (req, res) => {
