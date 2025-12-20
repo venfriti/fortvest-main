@@ -5,6 +5,7 @@ import authRoutes from './routes/authRoutes';
 import walletRoutes from './routes/walletRoutes';
 import loanRoutes from './routes/loanRoutes';
 import adminRoutes from './routes/adminRoutes';
+import savingsRoutes from './routes/savingsRoutes';
 import { query } from './config/database';
 
 const app = express();
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/savings', savingsRoutes);
 
 
 // Simple route to test DB connection
