@@ -63,3 +63,97 @@ export const getMyLoans = async (req: AuthRequest, res: Response): Promise<void>
         res.status(500).json({ error: 'Could not fetch loans' });
     }
 };
+
+export const repayLoan = async (req: AuthRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const loanId = req.params.id;
+  const { amount } = req.body; // Amount to pay back in KOBO/CENTS
+
+  if (!amount || amount <= 0) {
+    res.status(400).json({ error: 'Valid amount is required' });
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Get the Loan
+    const loanRes = await client.query(
+      'SELECT * FROM loans WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [loanId, userId]
+    );
+    const loan = loanRes.rows[0];
+
+    if (!loan) {
+        await client.query('ROLLBACK');
+        res.status(404).json({ error: 'Loan not found' });
+        return;
+    }
+
+    if (loan.status === 'PAID') {
+        await client.query('ROLLBACK');
+        res.status(400).json({ error: 'Loan is already fully paid' });
+        return;
+    }
+
+    // 2. Check Wallet Balance
+    const walletRes = await client.query(
+        'SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE',
+        [userId]
+    );
+    const currentBalance = Number(walletRes.rows[0].balance);
+
+    if (currentBalance < amount) {
+        await client.query('ROLLBACK');
+        res.status(400).json({ error: 'Insufficient funds in wallet' });
+        return;
+    }
+
+    // 3. Logic: Don't let them overpay
+    // If they owe 5000 and try to pay 6000, only take 5000.
+    // Note: In Postgres, bigint comes back as string, so we convert.
+    const currentDebt = Number(loan.repayment_amount); 
+    const actualPayment = amount > currentDebt ? currentDebt : amount;
+
+    // 4. Debit Wallet
+    await client.query(
+        'UPDATE wallets SET balance = balance - $1 WHERE user_id = $2',
+        [actualPayment, userId]
+    );
+
+    // 5. Update Loan
+    const newDebt = currentDebt - actualPayment;
+    const newStatus = newDebt <= 0 ? 'PAID' : 'ACTIVE';
+    
+    await client.query(
+        'UPDATE loans SET repayment_amount = $1, status = $2 WHERE id = $3',
+        [newDebt, newStatus, loanId]
+    );
+
+    // 6. Record Transaction
+    const reference = `LOAN-REPAY-${Date.now()}`;
+    await client.query(
+        `INSERT INTO transactions (user_id, amount, type, category, status, reference)
+         VALUES ($1, $2, 'DEBIT', 'LOAN_REPAYMENT', 'SUCCESS', $3)`,
+        [userId, actualPayment, reference]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+        message: 'Repayment successful',
+        paid: actualPayment,
+        remaining_debt: newDebt,
+        status: newStatus
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Repayment Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    client.release();
+  }
+};
