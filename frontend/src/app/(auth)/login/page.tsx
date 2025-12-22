@@ -1,113 +1,110 @@
+'use client'; // <--- This is required for interactivity in Next.js
+
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-// Replace with the actual color code from Figma if available
-const brandColor = 'bg-[#F24E1E]'; 
-const brandHoverColor = 'hover:bg-[#D23C12]';
+import { useRouter } from 'next/navigation'; // For redirecting
 
 export default function SignIn() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // 1. Send data to your Backend
+      const res = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // 2. Save the Token (Cookie or LocalStorage)
+      localStorage.setItem('token', data.token);
+
+      // 3. Redirect to Dashboard
+      router.push('/dashboard');
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-white font-sans">
-      {/* Left Side - Illustration and Logo */}
+      {/* Left Side */}
       <div className="hidden lg:flex w-1/2 bg-[#FFF5F2] relative flex-col justify-between p-8">
-        {/* Logo */}
         <div className="absolute top-8 left-8">
-          <Image
-            src="/fortvest-logo.png" // Place your logo in the public folder
-            alt="Fortvest Logo"
-            width={150}
-            height={40}
-            priority
-          />
+          <Image src="/fortvest-logo.png" alt="Logo" width={150} height={40} priority />
         </div>
-        {/* Illustration */}
         <div className="flex-grow flex items-center justify-center">
-            <Image
-            src="/fortvest-logo.png" // Place your illustration in the public folder
-            alt="Fortvest Authentication"
-            width={500}
-            height={600}
-            className="object-contain"
-            priority
-            />
+            <Image src="/fortvest-logo.png" alt="Auth" width={500} height={600} className="object-contain" priority />
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
+      {/* Right Side */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 md:p-16">
         <div className="w-full max-w-md space-y-8">
-          {/* Header */}
           <div className="text-left">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
-              Sign in
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Enter your login details below
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">Sign in</h2>
+            <p className="mt-2 text-sm text-gray-600">Enter your login details below</p>
           </div>
 
-          {/* Form */}
-          <form className="mt-8 space-y-6">
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {/* Error Message Display */}
+            {error && (
+              <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
+                <label htmlFor="email" className="sr-only">Email address</label>
                 <input
                   id="email"
-                  name="email"
                   type="email"
-                  autoComplete="email"
                   required
                   className="appearance-none rounded-lg relative block w-full px-4 py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#F24E1E] focus:border-[#F24E1E] sm:text-sm"
                   placeholder="Email address"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
               <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
+                <label htmlFor="password" className="sr-only">Password</label>
                 <input
                   id="password"
-                  name="password"
                   type="password"
-                  autoComplete="current-password"
                   required
                   className="appearance-none rounded-lg relative block w-full px-4 py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#F24E1E] focus:border-[#F24E1E] sm:text-sm"
                   placeholder="Password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
-            </div>
-
-            <div className="flex items-center justify-start">
-              <Link
-                href="/forgot-password"
-                className="font-medium text-sm text-[#F24E1E] hover:text-[#D23C12]"
-              >
-                Forgot password
-              </Link>
             </div>
 
             <div className="space-y-4">
               <button
                 type="submit"
-                className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white ${brandColor} ${brandHoverColor} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F24E1E]`}
+                disabled={loading}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-[#F24E1E] hover:bg-[#D23C12] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F24E1E] disabled:opacity-50"
               >
-                Login
-              </button>
-
-              <button
-                type="button"
-                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-              >
-                 <Image
-                  src="/globe.svg" // Place a Google G logo svg in your public folder
-                  alt="Google Logo"
-                  width={20}
-                  height={20}
-                  className="mr-3"
-                />
-                Continue with Google
+                {loading ? 'Logging in...' : 'Login'}
               </button>
             </div>
           </form>
