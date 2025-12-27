@@ -7,19 +7,18 @@ import loanRoutes from './routes/loanRoutes';
 import adminRoutes from './routes/adminRoutes';
 import savingsRoutes from './routes/savingsRoutes';
 import investmentRoutes from './routes/investmentRoutes';
-import { query } from './config/database';
+
+import { ENV } from "./config/env";
+import { verifyDatabaseConnection, query } from './config/database';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Routes
-app.use(express.json());
 
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Allow frontend to connect
-app.use(express.json()); // Parse JSON bodies
+app.use(express.json());
 
+// Routes
 app.use('/api/auth', authRoutes); 
 app.use('/api/wallet', walletRoutes);
 app.use('/api/loans', loanRoutes);
@@ -27,10 +26,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/savings', savingsRoutes);
 app.use('/api/investments', investmentRoutes);
 
-// Simple route to test DB connection
+// Temporary DB test route (optional, remove for prod)
 app.get('/test-db', async (req, res) => {
   try {
-    // Run a simple SQL query to check time
     const result = await query('SELECT NOW()');
     res.json({ 
       message: 'Database connection successful!', 
@@ -42,6 +40,10 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// Start server only after DB is verified
+(async () => {
+  await verifyDatabaseConnection();
+  app.listen(ENV.PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${ENV.PORT}`);
+  });
+})();
