@@ -1,27 +1,28 @@
-// src/config/database.ts
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
+import { ENV } from "./env";
 
-// Load environment variables from .env file
-dotenv.config();
+export const pool = new Pool({
+  connectionString: ENV.DATABASE_URL,
+  ssl: ENV.NODE_ENV === "production"
+    ? { rejectUnauthorized: false }
+    : false,
+})
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
+export async function verifyDatabaseConnection() {
+  try {
+    await pool.query("SELECT 1");
+    console.log("✅ Database connection verified");
+  } catch (error) {
+    console.error("❌ Database connection failed");
+    console.error(error);
+    process.exit(1);
+  }
+}
 
 // Event listener for successful connection (Optional, but good for debugging)
-pool.on('connect', () => {
-  console.log('📦 Connected to the Fortvest Database successfully!');
-});
-
-// Event listener for errors (Important for catching crashes)
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+pool.on("error", (err) => {
+  console.error("❌ Unexpected PostgreSQL error", err);
+  process.exit(1);
 });
 
 // Export a query function that we can use in our controllers/models
